@@ -1,0 +1,26 @@
+services:
+  agent:
+    build:
+      context: ..
+      dockerfile: .agent/Dockerfile
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    volumes:
+      - ..:/workspace
+      - claude-config:/home/agent/.claude
+      - codex-config:/home/agent/.codex
+      - junie-config:/home/agent/.junie
+      - gemini-config:/home/agent/.gemini
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  claude-config:
+  codex-config:
+  junie-config:
+  gemini-config:

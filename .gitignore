@@ -1,0 +1,25 @@
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+
+# Agent State (local configs)
+.claude/
+.codex/
+.junie/
+.gemini/
+
+# Docker
+.docker/
