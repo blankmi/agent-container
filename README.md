@@ -20,6 +20,8 @@ cp -r /path/to/agent-container/template/. your-project/ && chmod +x your-project
 
 Then edit `your-project/.agent/Dockerfile` to pin the base image tag and add project-specific runtimes.
 
+To let a coding agent configure the environment for you, use the included `template/.agent/AGENT.md` as your prompt. The agent will inspect the repository, determine required runtimes and tooling, and update the Dockerfile accordingly.
+
 ## Usage
 
 ```bash
