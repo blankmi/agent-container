@@ -8,10 +8,7 @@ services:
     tty: true
     volumes:
       - ..:/workspace
-      - claude-config:/home/agent/.claude
-      - codex-config:/home/agent/.codex
-      - junie-config:/home/agent/.junie
-      - gemini-config:/home/agent/.gemini
+      - agent-home:/home/agent
     tmpfs:
       - /tmp
     security_opt:
@@ -20,7 +17,4 @@ services:
       - ALL
 
 volumes:
-  claude-config:
-  codex-config:
-  junie-config:
-  gemini-config:
+  agent-home:

@@ -3,7 +3,7 @@ FROM node:lts-bookworm-slim
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
-    curl git jq ripgrep bash zsh ca-certificates \
+    curl git jq ripgrep bash zsh ca-certificates make \
     unzip lsb-release \
  && rm -rf /var/lib/apt/lists/*
 

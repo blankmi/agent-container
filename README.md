@@ -33,7 +33,7 @@ To let a coding agent configure the environment for you, use the included `templ
 
 ## Persistent Auth
 
-Agent config is stored in named Docker volumes (`claude-config`, `codex-config`, `junie-config`). Log in once; sessions persist across container restarts.
+Agent config is stored in a named Docker volume (`agent-home`) that mounts the entire `/home/agent` directory, including `~/.claude.json` and all tool config subdirectories. Log in once; sessions persist across container restarts.
 
 ## Update Strategy
 
