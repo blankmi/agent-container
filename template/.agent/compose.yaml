@@ -21,8 +21,9 @@ services:
       - GIT_USER_NAME
       - GIT_USER_EMAIL
     volumes:
-      - ..:/workspace
+      - claude-home:/home/agent
       - claude-creds:/home/agent/.claude-shared
+      - ..:/workspace
 
   codex:
     <<: *defaults
@@ -35,8 +36,9 @@ services:
       - GIT_USER_NAME
       - GIT_USER_EMAIL
     volumes:
-      - ..:/workspace
+      - codex-home:/home/agent
       - codex-creds:/home/agent/.codex
+      - ..:/workspace
 
   junie:
     <<: *defaults
@@ -55,6 +57,7 @@ services:
       - OPENROUTER_API_KEY
       - GOOGLE_API_KEY
     volumes:
+      - junie-home:/home/agent
       - ..:/workspace
 
   shell:
@@ -68,9 +71,14 @@ services:
       - GIT_USER_NAME
       - GIT_USER_EMAIL
     volumes:
+      - shell-home:/home/agent
       - ..:/workspace
 
 volumes:
+  claude-home:
+  codex-home:
+  junie-home:
+  shell-home:
   claude-creds:
     external: true
     name: agent-creds-claude
