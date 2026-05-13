@@ -19,7 +19,6 @@ yarn-error.log*
 .claude/
 .codex/
 .junie/
-.gemini/
 
 # Docker
 .docker/

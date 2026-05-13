@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -e
-CMD=${1:-bash}
-shift || true
+SERVICE=${1:?Usage: agent <claude|codex|junie|shell> [args...]}
+shift
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 export GIT_USER_NAME=$(git config --global user.name 2>/dev/null || true)
 export GIT_USER_EMAIL=$(git config --global user.email 2>/dev/null || true)
 exec docker compose \
   -f .agent/compose.yaml \
-  run --rm agent "$CMD" "$@"
+  run --rm "$SERVICE" "$@"

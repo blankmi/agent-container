@@ -11,32 +11,29 @@ RUN apt-get update && apt-get install -y \
 # Layer 2: User setup — stable, no deps on tooling
 RUN usermod -l agent -d /home/agent -m node && groupmod -n agent node
 
-# Layer 3: npm-based CLIs (root) — semi-stable, version-pinned by npm registry
-RUN npm install -g @openai/codex @google/gemini-cli
-
-# Layer 4: cs binary (root) — fetches "latest" from GitHub, keep after npm so
-#           npm cache survives a cs release bump
+# Layer 3: cs binary (root) — fetches "latest" from GitHub
 RUN CS_URL=$(curl -s https://api.github.com/repos/blankmi/codesight/releases/latest \
       | jq -r '.assets[] | select(.name == "cs-linux-amd64") | .browser_download_url') && \
     curl -fsSL -o /usr/local/bin/cs "$CS_URL" && \
     chmod +x /usr/local/bin/cs
 
-# Layer 5: entrypoint script (root) — sets git identity at container startup
+# Layer 4: entrypoint script — sets git identity from host env, wires Claude
+#           credential symlinks when the shared volume is mounted
 RUN printf '#!/bin/sh\n\
 [ -n "$GIT_USER_NAME" ] && git config --global user.name "$GIT_USER_NAME"\n\
 [ -n "$GIT_USER_EMAIL" ] && git config --global user.email "$GIT_USER_EMAIL"\n\
+if [ -d /home/agent/.claude-shared ]; then\n\
+  mkdir -p /home/agent/.claude-shared/.claude\n\
+  [ -e /home/agent/.claude-shared/.claude.json ] || touch /home/agent/.claude-shared/.claude.json\n\
+  [ -L /home/agent/.claude.json ] || rm -f  /home/agent/.claude.json\n\
+  [ -L /home/agent/.claude      ] || rm -rf /home/agent/.claude\n\
+  ln -sf  /home/agent/.claude-shared/.claude.json /home/agent/.claude.json\n\
+  ln -sfn /home/agent/.claude-shared/.claude      /home/agent/.claude\n\
+fi\n\
 exec "$@"\n' > /usr/local/bin/docker-entrypoint.sh \
  && chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Layer 6+: curl-based CLIs (agent) — each in its own layer so one update
-#            doesn't invalidate the other
 USER agent
-RUN curl -fsSL https://claude.ai/install.sh | bash
-RUN curl -fsSL https://junie.jetbrains.com/install.sh | bash
-
-# Layer 8: stable agent config — never changes
-RUN mkdir -p /home/agent/.codex /home/agent/.gemini
-
 ENV PATH="/home/agent/.local/bin:$PATH"
 
 WORKDIR /workspace

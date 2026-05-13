@@ -1,0 +1,14 @@
+ARG BASE_DATE
+FROM local/agent-base:${BASE_DATE}
+
+USER agent
+# Install Claude Code, then remove any state it created in $HOME so the base
+# entrypoint can freely symlink ~/.claude.json and ~/.claude into the shared
+# credentials volume on container startup.
+RUN curl -fsSL https://claude.ai/install.sh | bash \
+ && rm -rf /home/agent/.claude /home/agent/.claude.json
+
+# Mount point for the shared claude credentials volume — owned by agent
+RUN mkdir -p /home/agent/.claude-shared
+
+CMD ["claude"]

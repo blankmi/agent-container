@@ -1,14 +1,23 @@
 # agent-container
 
-Base image and project template for running AI coding agents (Claude Code, Codex CLI, Junie) in isolated Docker containers with persistent auth state.
+Per-agent base images and a project template for running AI coding agents (Claude Code, Codex CLI, Junie) in isolated Docker containers. Logins are shared across projects via external Docker volumes; everything else stays ephemeral so concurrent containers on different worktrees don't race.
 
 ## Initial Setup
 
-Build the base image (tagged with today's date as `local/agent-base:YYYY-MM-DD`):
+Build the per-agent base images (all tagged with today's date as `local/agent-<name>:YYYY-MM-DD`) and create the shared credential volumes:
 
 ```bash
 ./build.sh
 ```
+
+This produces:
+
+- `local/agent-base:YYYY-MM-DD` — shared OS tooling, no agent CLIs
+- `local/agent-claude:YYYY-MM-DD` — Claude Code
+- `local/agent-codex:YYYY-MM-DD` — Codex CLI
+- `local/agent-junie:YYYY-MM-DD` — Junie
+
+…and the external Docker volumes `agent-creds-claude` and `agent-creds-codex` (Junie auths via env vars instead of a volume — see "Persistent Auth").
 
 ## New Project Setup
 
@@ -18,34 +27,49 @@ Copy the template into your project root:
 cp -r /path/to/agent-container/template/. your-project/ && chmod +x your-project/agent
 ```
 
-Then edit `your-project/.agent/Dockerfile` to pin the base image tag and add project-specific runtimes.
+Then edit `your-project/.agent/compose.yaml` to pin today's date in the `BASE_IMAGE` build args for each service, and add project-specific runtimes to `your-project/.agent/Dockerfile` if needed (the Dockerfile is shared across all per-agent services).
 
 To let a coding agent configure the environment for you, use the included `template/.agent/AGENT.md` as your prompt. The agent will inspect the repository, determine required runtimes and tooling, and update the Dockerfile accordingly.
 
 ## Usage
 
 ```bash
-./agent claude    # start Claude Code
-./agent codex     # start Codex CLI
-./agent junie     # start Junie
-./agent bash      # open a shell
+./agent claude         # start Claude Code
+./agent codex          # start Codex CLI
+./agent junie          # start Junie
+./agent shell          # open a plain shell on the base image (no agent CLI, no shared creds)
+./agent claude bash    # open a shell inside the claude container (e.g. for debugging)
 ```
+
+The first argument is the compose service to enter. Anything after it is passed to the container as the command (overriding the service's default CMD).
 
 ## Persistent Auth
 
-Agent config is stored in a named Docker volume (`agent-home`) that mounts the entire `/home/agent` directory, including `~/.claude.json` and all tool config subdirectories. Log in once; sessions persist across container restarts.
+Each agent has its own external Docker volume, shared across every project on this host:
+
+| Agent  | External volume      | Mount point inside container                                                                 |
+|--------|----------------------|----------------------------------------------------------------------------------------------|
+| Claude | `agent-creds-claude` | `/home/agent/.claude-shared` (entrypoint symlinks `~/.claude.json` and `~/.claude/` into it) |
+| Codex  | `agent-creds-codex`  | `/home/agent/.codex`                                                                         |
+
+Log in once for each agent and the token is reused by every project that uses the template.
+
+Junie authenticates via CLI flags. Its compose service forwards these host env vars (omits whichever you haven't set):
+
+- `JUNIE_AUTH` → `--auth`
+- `ANTHROPIC_API_KEY` → `--anthropic-api-key`
+- `OPENAI_API_KEY` → `--openai-api-key`
+- `GROK_API_KEY` → `--grok-api-key`
+- `OPENROUTER_API_KEY` → `--openrouter-api-key`
+- `GOOGLE_API_KEY` → `--google-api-key`
+
+Export whichever provider key you use on the host before running `./agent junie`.
+
+Everything outside the credential mounts lives in the container's image layer for that run — no shared bash history, no shared caches. Two `./agent claude` runs on different worktrees can run concurrently without racing on transient home state.
 
 ## Update Strategy
 
-Rebuild the base image with a new date tag:
-
-```bash
-docker build --pull --no-cache \
-  -t local/agent-base:$(date +%Y-%m-%d) \
-  /path/to/agent-container
-```
-
-Then update the FROM line in each project's `.agent/Dockerfile` and rebuild:
+Rebuild all per-agent images with a new date tag by re-running `./build.sh`. Then update the `BASE_IMAGE` build args in each project's `.agent/compose.yaml` to the new date and rebuild the per-project images:
 
 ```bash
 docker compose -f .agent/compose.yaml build
@@ -91,13 +115,13 @@ networks:
     name: myproject-dev-net
 ```
 
-Then attach the agent container to the same network in `.agent/compose.yaml`:
+Then attach each agent service to the same network in `.agent/compose.yaml` (the `x-defaults` anchor is a convenient place to apply it once):
 
 ```yaml
-services:
-  agent:
-    networks:
-      - dev-net
+x-defaults: &defaults
+  # …existing keys…
+  networks:
+    - dev-net
 
 networks:
   dev-net:

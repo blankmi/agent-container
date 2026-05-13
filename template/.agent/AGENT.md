@@ -1,158 +1,61 @@
 # Agent Instructions
 
-Your task is to prepare and maintain the project-specific agent container environment.
+Your task: extend `.agent/Dockerfile` with the runtimes and CLIs this repository needs, so it can be built, tested, and run inside the container. The README explains the per-agent image layout, the `./agent` launcher, and the persistent auth model — read it first if you haven't.
 
 ## Goals
 
-- Ensure the repository can be built, tested and executed inside the container
-- Keep the environment reproducible
-- Keep the container minimal
-- Prefer deterministic tooling and versions
-- Avoid unnecessary global tooling
-
----
-
-# Responsibilities
+- Install everything the repository requires to build, test, and run
+- Install nothing it doesn't
+- Keep the image reproducible — pinned, official, deterministic versions
 
 ## Analyze the Repository
 
-Inspect the repository structure and automatically determine:
+Inspect the repo to determine required languages, runtimes, build tools, package managers, and CLIs.
 
-- required programming languages
-- required runtimes
-- required package managers
-- required build tools
-- required test tools
-- required external services
-- required CLIs/utilities
+Useful signals: `pom.xml`, `build.gradle`, `package.json`, `pnpm-lock.yaml`, `.nvmrc`, `Dockerfile`, `docker-compose.yml`, `.tool-versions`, `go.mod`, `Cargo.toml`, `requirements.txt`, `pyproject.toml`, CI configs.
 
-Examples:
+If none are present, infer from source file extensions and directory structure. If the requirements cannot be determined, ask before proceeding.
 
-- Java
-- Maven
-- Gradle
-- Node.js
-- pnpm
-- Go
-- Python
-- Playwright
-- PostgreSQL client
-- Redis tools
+## Extending the Image
 
-Use repository files to infer requirements.
+`.agent/Dockerfile` is a single project-specific Dockerfile, parameterised by `ARG BASE_IMAGE`. Each compose service (`claude`, `codex`, `junie`, `shell`) builds it on top of a different `local/agent-*` base. **Anything you add applies to every service** — there is no per-agent variant to maintain.
 
-Examples:
+Add tooling between the existing `USER root` / `USER agent` lines.
 
-- `pom.xml`
-- `build.gradle`
-- `package.json`
-- `pnpm-lock.yaml`
-- `.nvmrc`
-- `Dockerfile`
-- `docker-compose.yml`
-- `.tool-versions`
-- CI configuration
+Example (Java + Maven):
 
-If none of these files are present, inspect source file extensions and directory structure to infer the language and toolchain. If requirements cannot be determined, ask before proceeding.
+```dockerfile
+USER root
+RUN apt-get update && apt-get install -y openjdk-21-jdk maven \
+ && rm -rf /var/lib/apt/lists/*
+USER agent
+```
 
----
+Guidelines:
 
-# Container Setup
+- Prefer official package repositories and pinned versions
+- Clean up in the same RUN (e.g. `rm -rf /var/lib/apt/lists/*`)
+- Do not install tools the repository doesn't actually use
+- Do not bake secrets into the image — use `docker build --secret` or mounted files
 
-Update `.agent/Dockerfile` when additional tooling is required.
+`.agent/compose.yaml` should only be edited for base image version bumps (the `BASE_IMAGE: local/agent-*:YYYY-MM-DD` lines) or network attachment. Runtime tooling belongs in the Dockerfile.
 
-Requirements:
+## Workflow
 
-- prefer official package repositories
-- prefer stable LTS versions
-- keep image size minimal — remove build tools not needed at runtime
-- avoid duplicate tooling
-- remove unnecessary packages
-- keep layers clean
+1. State why the change is needed
+2. Edit `.agent/Dockerfile`
+3. Rebuild: `docker compose -f .agent/compose.yaml build`
+4. Validate (see below)
 
-Do not install tools that are not required by the repository.
+## Validation
 
----
+Verify inside the container using the `shell` service so no agent CLI interferes.
 
-# Networking
+Example:
 
-Inspect existing Docker Compose files and infrastructure configuration.
+```bash
+./agent shell mvn --version       # confirm the toolchain
+./agent shell mvn -B verify       # build + test
+```
 
-If the repository depends on external containers/services:
-
-- ensure the agent container joins the correct Docker network
-- prefer existing external networks
-- do not expose unnecessary ports
-
-Services inside Docker networks should be accessed via service/container name.
-
-Do not use `localhost` for container-to-container communication.
-
-Use `host.docker.internal` only for services running directly on the macOS host.
-
----
-
-# Validation
-
-After updating the environment:
-
-1. build the project
-2. execute tests
-3. verify formatting/linting if configured
-4. verify installed CLIs respond correctly (e.g. `node --version`, `mvn --version`)
-
-The environment is considered valid only if the repository builds and tests successfully. If validation fails, diagnose the root cause, fix the Dockerfile or compose.yaml, and re-validate. Do not mark the environment valid until all steps pass.
-
----
-
-# Security
-
-- prefer least privilege
-- do not mount unnecessary host directories
-- do not persist secrets inside images
-- pass build-time secrets via `docker build --secret` or mounted files, never as `ENV` or `ARG` values baked into the image
-- use mounted Docker volumes for agent sessions/authentication
-- avoid privileged containers
-- avoid adding unnecessary Linux capabilities
-
----
-
-# Persistence
-
-Agent authentication and sessions are persisted via mounted Docker volumes.
-
-Do not modify this behavior.
-
-Expected persistent directories:
-
-- `/home/agent/.claude`
-- `/home/agent/.codex`
-- `/home/agent/.junie`
-
----
-
-# Workflow
-
-When environment changes are required:
-
-1. explain why the change is necessary
-2. update `.agent/Dockerfile`
-3. update `.agent/compose.yaml` if required
-4. rebuild the container: `docker compose -f .agent/compose.yaml build`
-5. validate the setup
-
-You are expected to run these commands yourself. Do not ask the user to build or start the container.
-
-Prefer minimal, incremental changes.
-
----
-
-# General Rules
-
-- prefer reproducibility over convenience
-- prefer explicit configuration over implicit assumptions
-- prefer repository-local tooling
-- avoid modifying unrelated infrastructure
-- avoid introducing unnecessary services
-- keep startup time reasonable
-- keep resource usage reasonable
+The environment is valid only when the repository builds and tests pass. If either fails, diagnose the root cause and re-validate. Do not mark the setup ready until both succeed.

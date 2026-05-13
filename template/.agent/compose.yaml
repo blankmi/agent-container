@@ -1,23 +1,79 @@
+x-defaults: &defaults
+  working_dir: /workspace
+  stdin_open: true
+  tty: true
+  tmpfs:
+    - /tmp:exec
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
 services:
-  agent:
+  claude:
+    <<: *defaults
     build:
       context: ..
       dockerfile: .agent/Dockerfile
-    working_dir: /workspace
-    stdin_open: true
-    tty: true
+      args:
+        BASE_IMAGE: local/agent-claude:2026-05-13
     environment:
       - GIT_USER_NAME
       - GIT_USER_EMAIL
     volumes:
       - ..:/workspace
-      - agent-home:/home/agent
-    tmpfs:
-      - /tmp
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
+      - claude-creds:/home/agent/.claude-shared
+
+  codex:
+    <<: *defaults
+    build:
+      context: ..
+      dockerfile: .agent/Dockerfile
+      args:
+        BASE_IMAGE: local/agent-codex:2026-05-13
+    environment:
+      - GIT_USER_NAME
+      - GIT_USER_EMAIL
+    volumes:
+      - ..:/workspace
+      - codex-creds:/home/agent/.codex
+
+  junie:
+    <<: *defaults
+    build:
+      context: ..
+      dockerfile: .agent/Dockerfile
+      args:
+        BASE_IMAGE: local/agent-junie:2026-05-13
+    environment:
+      - GIT_USER_NAME
+      - GIT_USER_EMAIL
+      - JUNIE_AUTH
+      - OPENAI_API_KEY
+      - ANTHROPIC_API_KEY
+      - GROK_API_KEY
+      - OPENROUTER_API_KEY
+      - GOOGLE_API_KEY
+    volumes:
+      - ..:/workspace
+
+  shell:
+    <<: *defaults
+    build:
+      context: ..
+      dockerfile: .agent/Dockerfile
+      args:
+        BASE_IMAGE: local/agent-base:2026-05-13
+    environment:
+      - GIT_USER_NAME
+      - GIT_USER_EMAIL
+    volumes:
+      - ..:/workspace
 
 volumes:
-  agent-home:
+  claude-creds:
+    external: true
+    name: agent-creds-claude
+  codex-creds:
+    external: true
+    name: agent-creds-codex

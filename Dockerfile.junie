@@ -1,0 +1,7 @@
+ARG BASE_DATE
+FROM local/agent-base:${BASE_DATE}
+
+USER agent
+RUN curl -fsSL https://junie.jetbrains.com/install.sh | bash
+
+CMD ["junie"]
