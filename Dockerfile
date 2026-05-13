@@ -21,7 +21,14 @@ RUN CS_URL=$(curl -s https://api.github.com/repos/blankmi/codesight/releases/lat
     curl -fsSL -o /usr/local/bin/cs "$CS_URL" && \
     chmod +x /usr/local/bin/cs
 
-# Layer 5+: curl-based CLIs (agent) — each in its own layer so one update
+# Layer 5: entrypoint script (root) — sets git identity at container startup
+RUN printf '#!/bin/sh\n\
+[ -n "$GIT_USER_NAME" ] && git config --global user.name "$GIT_USER_NAME"\n\
+[ -n "$GIT_USER_EMAIL" ] && git config --global user.email "$GIT_USER_EMAIL"\n\
+exec "$@"\n' > /usr/local/bin/docker-entrypoint.sh \
+ && chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Layer 6+: curl-based CLIs (agent) — each in its own layer so one update
 #            doesn't invalidate the other
 USER agent
 RUN curl -fsSL https://claude.ai/install.sh | bash
@@ -33,3 +40,5 @@ RUN mkdir -p /home/agent/.codex /home/agent/.gemini
 ENV PATH="/home/agent/.local/bin:$PATH"
 
 WORKDIR /workspace
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["bash"]
