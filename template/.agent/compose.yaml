@@ -13,7 +13,7 @@ services:
   claude:
     <<: *defaults
     build:
-      context: ..
+      context: .
       dockerfile: .agent/Dockerfile
       args:
         BASE_IMAGE: local/agent-claude:2026-05-13
@@ -23,12 +23,12 @@ services:
     volumes:
       - claude-home:/home/agent
       - claude-creds:/home/agent/.claude-shared
-      - ..:/workspace
+      - .:/workspace
 
   codex:
     <<: *defaults
     build:
-      context: ..
+      context: .
       dockerfile: .agent/Dockerfile
       args:
         BASE_IMAGE: local/agent-codex:2026-05-13
@@ -38,12 +38,12 @@ services:
     volumes:
       - codex-home:/home/agent
       - codex-creds:/home/agent/.codex
-      - ..:/workspace
+      - .:/workspace
 
   junie:
     <<: *defaults
     build:
-      context: ..
+      context: .
       dockerfile: .agent/Dockerfile
       args:
         BASE_IMAGE: local/agent-junie:2026-05-13
@@ -58,12 +58,12 @@ services:
       - GOOGLE_API_KEY
     volumes:
       - junie-home:/home/agent
-      - ..:/workspace
+      - .:/workspace
 
   shell:
     <<: *defaults
     build:
-      context: ..
+      context: .
       dockerfile: .agent/Dockerfile
       args:
         BASE_IMAGE: local/agent-base:2026-05-13
@@ -72,7 +72,7 @@ services:
       - GIT_USER_EMAIL
     volumes:
       - shell-home:/home/agent
-      - ..:/workspace
+      - .:/workspace
 
 volumes:
   claude-home:
